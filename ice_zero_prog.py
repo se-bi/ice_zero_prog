@@ -58,10 +58,6 @@ class App:
     (mfr_id,dev_id,dev_cap) = self.prom.read_id();
     print("Found "+mfr_id+" "+dev_id+" "+str(dev_cap)+" MBytes" );
 
-    print("Bulk Erasing...");
-    self.prom.erase();
-    print("Complete.");
-
     print("Erasing and loading " + file_name + " to %06x" % addr );
     self.prom.write_file_to_mem( file_name, addr );
 
@@ -97,6 +93,7 @@ class micron_prom:
     self.sec_erase    = 0xd8;# Erase Sector
     self.bulk_erase   = 0xc7;# Bulk Erase Device
     self.spi_link = spi_link;
+    self.sec_size = 64 * 2**10
     return;
 
   def read_id ( self ):
@@ -130,30 +127,55 @@ class micron_prom:
     miso_bytes = self.spi_link.xfer( mosi_bytes, num_bytes );
     return miso_bytes;
 
-  def write_file_to_mem( self, file_name, addr ):
-    # Great example of reading a binary file
-    import array, struct;
-    file_in = open ( file_name, 'r' );
-    file_bytes = file_in.read();
-    total_bytes = len( file_bytes );
+  def _addr_to_sector(self, addr):
+    return (int(addr / self.sec_size))
+
+  def _sector_to_addr(self, sector):
+    return (sector * self.sec_size)
+
+  def erase_sector_at_addr(self, addr):
+    print("Erase sector %d (addr 0x%06x)" % (self._addr_to_sector(addr), addr) )
+
+    # Write enable
     self.spi_link.xfer( [ self.wr_en ], 0 )
+
     mosi_bytes = [ self.sec_erase,
                    ( addr & 0xFF0000 ) >> 16,
                    ( addr & 0x00FF00 ) >>  8,
                    ( addr & 0x0000FF ) >>  0 ];
     # Erase the sector
     self.spi_link.xfer( mosi_bytes, 0 )
+
+    # Write disable
     self.spi_link.xfer( [ self.wr_dis ], 0 )
 
     status = 0x01;# Loop until Status says erase is done
     while ( status & 0x01 != 0x00 ):
       status = self.spi_link.xfer( [ self.rd_status ], 1 )[0];
 
+  def erase_sector(self, n):
+    self.erase_sector_at_addr(self._sector_to_addr(n))
+
+  def write_file_to_mem( self, file_name, addr ):
+    # Great example of reading a binary file
+    import array, struct;
+    file_in = open ( file_name, 'r' );
+    file_bytes = file_in.read();
+    total_bytes = len( file_bytes );
+
+    erased_sectors = []
+
     perc = 0; xferd = 0;
     while( len( file_bytes ) > 0 ):
       if ( ( 100.0*float(xferd) / float(total_bytes) ) > perc ):
         print("%d%%" % (perc) );
         perc += 10;
+
+      sector = self._addr_to_sector(addr)
+      if not sector in erased_sectors:
+        self.erase_sector_at_addr(addr)
+        erased_sectors.append(sector)
+
       # Grab 256 bytes at a time
       if ( len( file_bytes ) > 256 ):
         xfer_bytes = file_bytes[0:256];
