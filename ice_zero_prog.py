@@ -28,6 +28,7 @@
 # pylint: disable=unnecessary-semicolon
 
 import sys;
+import os
 import RPi.GPIO as GPIO;
 import time;
 from time import sleep;
@@ -53,19 +54,23 @@ class App:
     else:
       addr = int( self.arg1, 16 );
 
-    (mfr_id,dev_id,dev_cap) = self.prom.read_id();
-    print("Found "+mfr_id+" "+dev_id+" "+str(dev_cap)+" MBytes" );
+    ret = 0
 
-    print("Erasing and loading " + file_name + " to %06x" % addr );
-    self.prom.write_file_to_mem( file_name, addr );
+    mfr_id, dev_id, dev_cap = self.prom.read_id();
+    print("=== Found %s %s %d MBytes" % (mfr_id, dev_id, dev_cap))
 
-    # Read out 1st 8 bytes as visual check
-    miso_bytes = self.prom.read_mem( addr, 8 );
-    for each in miso_bytes:
-      print("%02x" % ( each ) );
+    print("=== Flashing %s to 0x%06x" % (os.path.basename(file_name), addr))
+    self.prom.write_file_to_mem(file_name, addr)
+
+    print "=== Verify first 512 bytes: ",
+    if self.prom.verify(file_name, addr, 512):
+      print("OK")
+    else:
+	  print("FAIL")
+	  ret = 1
 
     self.spi_link.close();
-    return;
+    return ret;
 
   def main_loop( self ):
     while( True ):
@@ -126,6 +131,23 @@ class micron_prom:
     miso_bytes = self.spi_link.xfer( mosi_bytes, num_bytes );
     return miso_bytes;
 
+  def verify(self, file_name, addr, byte_count = None):
+    file_in = open(file_name, 'r')
+    file_bytes = file_in.read()
+    file_in.close()
+
+    if not byte_count:
+      byte_count = len(file_bytes)
+
+    miso_bytes = self.read_mem( addr, byte_count);
+    for index, byte in enumerate(miso_bytes):
+      expected = ord(file_bytes[index])
+      if byte != expected:
+        print("Mismatch at 0x%06x: read 0x%02x, expected 0x%02x" % (addr + index, byte, expected))
+        return False
+
+    return True
+
   def _addr_to_sector(self, addr):
     return (int(addr / self.sec_size))
 
@@ -133,7 +155,11 @@ class micron_prom:
     return (sector * self.sec_size)
 
   def erase_sector_at_addr(self, addr):
-    print("Erase sector %d (addr 0x%06x)" % (self._addr_to_sector(addr), addr))
+    sector = self._addr_to_sector(addr)
+    sector_start = self._sector_to_addr(sector)
+    sector_end = self._sector_to_addr(sector + 1) - 1
+
+    print("== Erase sector %d (0x%06x - 0x%06x)" % (sector, sector_start, sector_end))
 
     # write enable
     self.spi_link.xfer( [ self.wr_en ], 0 );
@@ -156,12 +182,13 @@ class micron_prom:
 
   def write_file_to_mem( self, file_name, addr ):
     # Great example of reading a binary file
-    import array, struct;
-    bytes = array.array('B');
+    #import array, struct;
+    #bytes = array.array('B');
     file_in = open ( file_name, 'r' );
     file_bytes = file_in.read();
-    total_bytes = len( file_bytes );
+    file_in.close()
 
+    total_bytes = len( file_bytes );
     erased_sectors = []
 
     k = 0;
@@ -272,4 +299,4 @@ class spi_link:
 
 ###############################################################################
 app = App();
-app.main();
+sys.exit(app.main());
