@@ -100,11 +100,11 @@ class micron_prom:
     if ( mfr_id == 0x20 ):
       mfr_id = "Micron";
     else:
-      mfr_id = "%02" % mfr_id;
+      mfr_id = "%02x" % mfr_id;
     if ( dev_id == 0xBA ): 
       dev_id = "N25Q128A";
     else:
-      dev_id = "%02" % dev_id;
+      dev_id = "%02x" % dev_id;
     dev_capacity = (2**dev_capacity) / (1024 * 1024 );
     return ( mfr_id, dev_id, dev_capacity );# 0x20, 0xBA, 0x18 == 128Mb
 
