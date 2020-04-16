@@ -27,6 +27,10 @@
 
 # pylint: disable=unnecessary-semicolon
 
+# due to python2 currently in combination with print(xy, _end=''_)
+# also flush=True is necessary
+from __future__ import print_function
+
 import sys
 import time
 from time import sleep
@@ -58,7 +62,8 @@ class App:
     (mfr_id,dev_id,dev_cap) = self.prom.read_id();
     print("Found "+mfr_id+" "+dev_id+" "+str(dev_cap)+" MBytes" );
 
-    print("Bulk Erasing...");
+    print("Bulk Erasing...", end='')
+    sys.stdout.flush()
     self.prom.erase();
     print("Complete.");
 
@@ -67,8 +72,7 @@ class App:
 
     # Read out 1st 8 bytes as visual check
     miso_bytes = self.prom.read_mem( addr, 8 );
-    for each in miso_bytes:
-      print("%02x" % ( each ) );
+    print( [hex(x).upper().replace('X', 'x') for x in miso_bytes] )
 
     self.spi_link.close();
     return;
@@ -152,7 +156,8 @@ class micron_prom:
     perc = 0; xferd = 0;
     while( len( file_bytes ) > 0 ):
       if ( ( 100.0*float(xferd) / float(total_bytes) ) > perc ):
-        print("%d%%" % (perc) );
+        print("%d%%" % (perc), end=('..') )
+        sys.stdout.flush()
         perc += 10;
       # Grab 256 bytes at a time
       if ( len( file_bytes ) > 256 ):
@@ -174,7 +179,8 @@ class micron_prom:
       while ( status & 0x01 != 0x00 ):
         status = self.spi_link.xfer( [ self.rd_status ], 1 )[0];
       addr += 256; xferd += 256;
-    return;
+
+    print('100% Done!')
 
   def write_mem ( self, addr, num_bytes ):
     mosi_bytes = [ self.rd, 
