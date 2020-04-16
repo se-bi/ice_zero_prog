@@ -34,6 +34,7 @@ from __future__ import print_function
 
 import sys
 import time
+import traceback
 from time import sleep
 
 import RPi.GPIO as GPIO
@@ -66,7 +67,8 @@ class App:
     (mfr_id,dev_id,dev_cap) = self.prom.read_id();
     print("Read mfr_id=%s dev_id=%s dev_cap=%dMBytes" % (mfr_id, dev_id, dev_cap));
     if mfr_id.lower() == "ff":
-      print("SPI Flash not found")
+      print("SPI Flash not found (If the previous execution got interrupted, maybe wait a minute or so...)")
+      self.spi_link.close();
       return
 
     print("Bulk Erasing...", end='')
@@ -265,5 +267,14 @@ class spi_link:
 
 
 ###############################################################################
-app = App();
-app.main();
+try:
+  app = App();
+  app.main();
+except KeyboardInterrupt:
+  print("Got interupted... but let me clean up the RPi.GPIO")
+  # sets all here used gpios as inputs again
+  GPIO.cleanup()
+except:
+  GPIO.cleanup()
+  print('Some error occured (but i cleaned up the RPi.GPIO before):\n')
+  print(traceback.format_exc())
