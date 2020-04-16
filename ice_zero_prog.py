@@ -27,10 +27,12 @@
 
 # pylint: disable=unnecessary-semicolon
 
-import sys;
-import RPi.GPIO as GPIO;
-import time;
-from time import sleep;
+import sys
+import time
+from time import sleep
+
+import RPi.GPIO as GPIO
+
 
 class App:
   def __init__(self):
@@ -112,13 +114,12 @@ class micron_prom:
     return ( mfr_id, dev_id, dev_capacity );# 0x20, 0xBA, 0x18 == 128Mb
 
   def erase( self ):
-    miso_bytes = self.spi_link.xfer( [ self.wr_en ], 0 );
-    mosi_bytes = [ self.bulk_erase ];
-    miso_bytes = self.spi_link.xfer( mosi_bytes, 0 );
+    self.spi_link.xfer( [ self.wr_en ], 0 )
+    self.spi_link.xfer( [ self.bulk_erase ], 0 )
     status = 0x01;# Loop until Status says erase is done
     while ( status & 0x01 != 0x00 ):
       status = self.spi_link.xfer( [ self.rd_status ], 1 )[0];
-    miso_bytes = self.spi_link.xfer( [ self.wr_dis ], 0 );
+    self.spi_link.xfer( [ self.wr_dis ], 0 )
     return;
 
   def read_mem ( self, addr, num_bytes ):
@@ -132,22 +133,22 @@ class micron_prom:
   def write_file_to_mem( self, file_name, addr ):
     # Great example of reading a binary file
     import array, struct;
-    bytes = array.array('B');
     file_in = open ( file_name, 'r' );
     file_bytes = file_in.read();
     total_bytes = len( file_bytes );
-    miso_bytes = self.spi_link.xfer( [ self.wr_en ], 0 );
-    mosi_bytes = [ self.sec_erase, 
+    self.spi_link.xfer( [ self.wr_en ], 0 )
+    mosi_bytes = [ self.sec_erase,
                    ( addr & 0xFF0000 ) >> 16,
                    ( addr & 0x00FF00 ) >>  8,
                    ( addr & 0x0000FF ) >>  0 ];
-    miso_bytes = self.spi_link.xfer( mosi_bytes, 0 );# Erase the sector
-    miso_bytes = self.spi_link.xfer( [ self.wr_dis ], 0 );
-    
+    # Erase the sector
+    self.spi_link.xfer( mosi_bytes, 0 )
+    self.spi_link.xfer( [ self.wr_dis ], 0 )
+
     status = 0x01;# Loop until Status says erase is done
     while ( status & 0x01 != 0x00 ):
       status = self.spi_link.xfer( [ self.rd_status ], 1 )[0];
-    k = 0;
+
     perc = 0; xferd = 0;
     while( len( file_bytes ) > 0 ):
       if ( ( 100.0*float(xferd) / float(total_bytes) ) > perc ):
@@ -166,9 +167,9 @@ class micron_prom:
                      ( addr & 0x0000FF ) >>  0 ];
       for byte in xfer_bytes:
         mosi_bytes += [ ord( byte )];
-      miso_bytes = self.spi_link.xfer( [ self.wr_en ], 0 );
-      miso_bytes = self.spi_link.xfer( mosi_bytes, 0 );# Write 256 bytes  
-      miso_bytes = self.spi_link.xfer( [ self.wr_dis ], 0 );
+      self.spi_link.xfer( [ self.wr_en ], 0 )
+      self.spi_link.xfer( mosi_bytes, 0 ); # Write 256 bytes
+      self.spi_link.xfer( [ self.wr_dis ], 0 )
       status = 0x01;# Loop until Status says write is done
       while ( status & 0x01 != 0x00 ):
         status = self.spi_link.xfer( [ self.rd_status ], 1 )[0];
@@ -226,7 +227,7 @@ class spi_link:
     miso_bytes = [];
     for each_byte in mosi_bytes:
       shift_reg = each_byte;
-      for i in range(0,8,1):
+      for _ in range(0,8,1):
         bit = 0x80 & shift_reg;
         if ( bit == 0x00 ):
           GPIO.output( self.pin_mosi , GPIO.LOW);
@@ -235,9 +236,9 @@ class spi_link:
         GPIO.output( self.pin_clk , GPIO.HIGH);
         GPIO.output( self.pin_clk , GPIO.LOW );
         shift_reg = ( shift_reg << 1 );
-    for i in range(0, miso_bytes_len):
+    for _ in range(0, miso_bytes_len):
       shift_reg = 0x00;
-      for i in range(0,8,1):
+      for _ in range(0,8,1):
         bit = GPIO.input( self.pin_miso );
         GPIO.output( self.pin_clk , GPIO.HIGH);
         GPIO.output( self.pin_clk , GPIO.LOW );
