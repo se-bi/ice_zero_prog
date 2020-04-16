@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 ##############################################################################
-# ice_zero_prog.py
+# ice_zero_prog.py <file.bin> [<dest_addr>]
+#
 #             Copyright (c) Kevin M. Hubbard 2017 BlackMesaLabs
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -59,8 +60,14 @@ class App:
     else:
       addr = int( self.arg1, 16 );
 
+    print("Waking up chip");
+    self.prom.wakeup();
+
     (mfr_id,dev_id,dev_cap) = self.prom.read_id();
-    print("Found "+mfr_id+" "+dev_id+" "+str(dev_cap)+" MBytes" );
+    print("Read mfr_id=%s dev_id=%s dev_cap=%dMBytes" % (mfr_id, dev_id, dev_cap));
+    if mfr_id.lower() == "ff":
+      print("SPI Flash not found")
+      return
 
     print("Bulk Erasing...", end='')
     sys.stdout.flush()
@@ -102,6 +109,9 @@ class micron_prom:
     self.bulk_erase   = 0xc7;# Bulk Erase Device
     self.spi_link = spi_link;
     return;
+
+  def wakeup ( self ):
+    self.spi_link.xfer([0xAB], 20); # Wake up
 
   def read_id ( self ):
     miso_bytes = self.spi_link.xfer( [0x9F], 17 );# Micron READ_ID
