@@ -24,6 +24,9 @@
 # 0.02  2017.01.29 khubbard  Bulk Erase Added.
 # NOTE: Sector Erase not working yet.
 ##############################################################################
+
+# pylint: disable=unnecessary-semicolon
+
 import sys;
 import RPi.GPIO as GPIO;
 import time;
