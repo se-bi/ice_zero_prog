@@ -267,14 +267,15 @@ class spi_link:
 
 
 ###############################################################################
-try:
-  app = App();
-  app.main();
-except KeyboardInterrupt:
-  print("Got interupted... but let me clean up the RPi.GPIO")
-  # sets all here used gpios as inputs again
-  GPIO.cleanup()
-except:
-  GPIO.cleanup()
-  print('Some error occured (but i cleaned up the RPi.GPIO before):\n')
-  print(traceback.format_exc())
+if __name__ == '__main__':
+  try:
+    app = App();
+    app.main();
+  except KeyboardInterrupt:
+    print("Got interupted... but let me clean up the RPi.GPIO")
+    # sets all here used gpios as inputs again
+    GPIO.cleanup()
+  except:
+    GPIO.cleanup()
+    print('Some error occured (but i cleaned up the RPi.GPIO before):\n')
+    print(traceback.format_exc())
