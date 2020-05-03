@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 ##############################################################################
 # ice_zero_prog.py <file.bin> [<dest_addr>]
 #
@@ -27,10 +27,6 @@
 ##############################################################################
 
 # pylint: disable=unnecessary-semicolon
-
-# due to python2 currently in combination with print(xy, _end=''_)
-# also flush=True is necessary
-from __future__ import print_function
 
 import sys
 import time
@@ -149,7 +145,7 @@ class micron_prom:
   def write_file_to_mem( self, file_name, addr ):
     # Great example of reading a binary file
     import array, struct;
-    file_in = open ( file_name, 'r' );
+    file_in = open ( file_name, 'rb' );
     file_bytes = file_in.read();
     total_bytes = len( file_bytes );
     self.spi_link.xfer( [ self.wr_en ], 0 )
@@ -178,12 +174,12 @@ class micron_prom:
       else:
         xfer_bytes = file_bytes[0:];
         file_bytes = [];
-      mosi_bytes = [ self.wr, 
+      mosi_bytes = bytes([ self.wr,
                      ( addr & 0xFF0000 ) >> 16,
                      ( addr & 0x00FF00 ) >>  8,
-                     ( addr & 0x0000FF ) >>  0 ];
-      for byte in xfer_bytes:
-        mosi_bytes += [ ord( byte )];
+                     ( addr & 0x0000FF ) >>  0 ])
+      mosi_bytes += xfer_bytes
+
       self.spi_link.xfer( [ self.wr_en ], 0 )
       self.spi_link.xfer( mosi_bytes, 0 ); # Write 256 bytes
       self.spi_link.xfer( [ self.wr_dis ], 0 )
