@@ -3,7 +3,8 @@ pylint:
   before_script:
     - which python
     - which pip
-    - pip install pylint rpi-gpio-emu
+    - pip install -r requirements-remote.txt
+    - pip install pylint
     - which pylint
   script:
     - bash .pylint.sh
