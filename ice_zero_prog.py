@@ -33,8 +33,6 @@ import time
 import traceback
 from time import sleep
 
-import RPi.GPIO as GPIO
-
 
 class App:
   def __init__(self):
@@ -68,12 +66,14 @@ class App:
       return
 
     print("Bulk Erasing...", end='')
-    sys.stdout.flush()
-    self.prom.erase();
-    print("Complete.");
+    print("Skipped for the moment")
+    #sys.stdout.flush()
+    #self.prom.erase();
+    #print("Complete.");
 
     print("Erasing and loading " + file_name + " to %06x" % addr );
-    self.prom.write_file_to_mem( file_name, addr );
+    print("Skipped for the moment")
+    #self.prom.write_file_to_mem( file_name, addr );
 
     # Read out 1st 8 bytes as visual check
     miso_bytes = self.prom.read_mem( addr, 8 );
@@ -205,23 +205,33 @@ class micron_prom:
 ###############################################################################
 # Class for bit banging to Micron SPI PROM connected to Lattice ICE40 FPGA
 class spi_link:
-  def __init__ ( self, platform ):
-    try:
-      import RPi.GPIO as GPIO;
-    except:
-      raise RuntimeError("ERROR: Unable to import RaspPi RPi.GPIO module");
+  def __init__ ( self, platform, remote = True ):
+    if remote:
+      self.GPIO = RPi_pigpio_wrapper()
+    else:
+      try:
+        import RPi.GPIO as RGPIO
+        self.GPIO = RGPIO
+        self.GPIO.setmode(RGPIO.BCM);
+      except:
+        raise RuntimeError("ERROR: Unable to import RaspPi RPi.GPIO module");
 
     if ( platform == "ice_zero_proto" ):
-      GPIO.setmode(GPIO.BOARD);
-      self.pin_rst_l = 37;
-      self.pin_clk   = 36;
-      self.pin_cs_l  = 32;
-      self.pin_miso  = 31;
-      self.pin_mosi  = 33;
-      self.pin_done  = 39;
+      #self.pin_rst_l = 37;
+      #self.pin_clk   = 36;
+      #self.pin_cs_l  = 32;
+      #self.pin_miso  = 31;
+      #self.pin_mosi  = 33;
+      #self.pin_done  = 39;
+      self.pin_rst_l = 26
+      self.pin_clk   = 16
+      self.pin_cs_l  = 12
+      self.pin_miso  = 6
+      self.pin_mosi  = 13
     else:
       raise RuntimeError("ERROR: Unknown platform " + platform );
 
+    GPIO = self.GPIO
     GPIO.setup( self.pin_rst_l, GPIO.OUT, initial = GPIO.LOW );
     GPIO.setup( self.pin_cs_l , GPIO.OUT, initial = GPIO.HIGH );
     GPIO.setup( self.pin_clk  , GPIO.OUT, initial = GPIO.LOW  );
@@ -230,6 +240,7 @@ class spi_link:
     return;
 
   def close( self ):
+    GPIO = self.GPIO
     GPIO.setup( self.pin_cs_l , GPIO.IN );
     GPIO.setup( self.pin_clk  , GPIO.IN );
     GPIO.setup( self.pin_mosi , GPIO.IN );
@@ -237,6 +248,7 @@ class spi_link:
     return;
 
   def xfer( self, mosi_bytes, miso_bytes_len ):
+    GPIO = self.GPIO
     GPIO.output( self.pin_cs_l , GPIO.LOW);# Assert Chip Select
     miso_bytes = [];
     for each_byte in mosi_bytes:
@@ -263,6 +275,40 @@ class spi_link:
 
 
 ###############################################################################
+# Class wrapping the RPi-API and pushing it through pigpio
+# Enables the access from remote hosts
+
+class RPi_pigpio_wrapper:
+
+  def __init__( self ):
+    import pigpio as pigpio
+    import RPi.GPIO as RGPIO
+
+    self.HIGH = RGPIO.HIGH
+    self.LOW  = RGPIO.LOW
+    self.OUT  = RGPIO.OUT
+    self.IN   = RGPIO.IN
+
+    self.mode_mapping  = { RGPIO.OUT:  pigpio.OUTPUT, RGPIO.IN:  pigpio.INPUT }
+
+    self.pi = pigpio.pi()
+
+  def __del__( self ):
+    pass
+
+  def setup( self, pin, mode, initial=None ):
+    self.pi.set_mode( pin, self.mode_mapping[mode])
+    if initial:
+      self.pi.write( pin, initial )
+
+  def output( self, pin, value ):
+    self.pi.write( pin, value )
+
+  def input( self, pin ):
+    return self.pi.read( pin )
+
+
+###############################################################################
 if __name__ == '__main__':
   try:
     app = App();
@@ -270,8 +316,14 @@ if __name__ == '__main__':
   except KeyboardInterrupt:
     print("Got interupted... but let me clean up the RPi.GPIO")
     # sets all here used gpios as inputs again
-    GPIO.cleanup()
+    try:
+      import RPi.GPIO as GPIO
+      GPIO.cleanup()
+    except: pass
   except:
-    GPIO.cleanup()
+    try:
+      import RPi.GPIO as GPIO
+      GPIO.cleanup()
+    except: pass
     print('Some error occured (but i cleaned up the RPi.GPIO before):\n')
     print(traceback.format_exc())
