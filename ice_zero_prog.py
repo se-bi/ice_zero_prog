@@ -28,6 +28,7 @@
 
 # pylint: disable=unnecessary-semicolon
 
+import os
 import sys
 import time
 import traceback
@@ -145,8 +146,14 @@ class micron_prom:
   def write_file_to_mem( self, file_name, addr ):
     # Great example of reading a binary file
     import array, struct;
-    file_in = open ( file_name, 'rb' );
-    file_bytes = file_in.read();
+
+    if file_name == "-":
+      input_file = os.fdopen(sys.stdin.fileno(), 'rb')
+      file_bytes = input_file.read()
+    else:
+      file_in = open ( file_name, 'rb' )
+      file_bytes = file_in.read()
+
     total_bytes = len( file_bytes );
     self.spi_link.xfer( [ self.wr_en ], 0 )
     mosi_bytes = [ self.sec_erase,
