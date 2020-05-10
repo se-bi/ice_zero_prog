@@ -66,14 +66,12 @@ class App:
       return
 
     print("Bulk Erasing...", end='')
-    print("Skipped for the moment")
-    #sys.stdout.flush()
-    #self.prom.erase();
-    #print("Complete.");
+    sys.stdout.flush()
+    self.prom.erase();
+    print("Complete.");
 
     print("Erasing and loading " + file_name + " to %06x" % addr );
-    print("Skipped for the moment")
-    #self.prom.write_file_to_mem( file_name, addr );
+    self.prom.write_file_to_mem( file_name, addr );
 
     # Read out 1st 8 bytes as visual check
     miso_bytes = self.prom.read_mem( addr, 8 );
